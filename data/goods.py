@@ -14,3 +14,11 @@ class Good(SqlAlchemyBase):
 
     def __repr__(self):
         return (str(self.article), str(self.about), str(self.price))
+    
+    def as_dict(self):
+        return {
+            'id': self.id,
+            'article': self.article,
+            'about': self.about,
+            'price': self.price
+        }
