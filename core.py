@@ -1,25 +1,29 @@
 from flask import Flask, jsonify
 from flask import render_template
-from flask import session
+from flask import request
 from data.users import User
 from data.forms import LoginForm
 from flask import redirect
 from flask_login import login_user
 from flask_login import logout_user
 from data.forms import RegisterForm
-from flask_restful import reqparse
-from flask_restful import abort
+from data.forms import NewGoodForm
 from flask_restful import Api
 from flask_restful import Resource
 from flask_login import login_required
 from flask_login import LoginManager
 from data import db_session
 from data.goods import Good
+from werkzeug.utils import secure_filename
+import os
+
 
 
 app = Flask(__name__, template_folder='static/templates', static_folder='static')
 app.config['SECRET_KEY'] = 'kjnc{On3[ijnP3[oNCQ@(nC#('
 api = Api(app)
+
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 
@@ -72,6 +76,7 @@ def reqister():
         db_sess.add(user)
         db_sess.commit()
         return redirect('/login')
+
     return render_template('register.html', title='Регистрация', form=form)
 
 
@@ -87,6 +92,20 @@ def test_view():
     goods = [', '.join(good) for good in goods]
 
     return '<br>'.join(goods)
+
+
+@app.route('/add_goods', methods=['GET', 'POST'])
+def add_good_view():
+    form = NewGoodForm()
+
+    if form.validate_on_submit():
+        f = form.image.data
+        filename = secure_filename(f.filename)
+        f.save(filename)
+        return redirect('/')
+    
+    return render_template('add_good.html', form=form)
+
 
 
 class GoodsResource(Resource):

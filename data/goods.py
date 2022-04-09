@@ -13,7 +13,7 @@ class Good(SqlAlchemyBase):
     price = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
 
     def __repr__(self):
-        return (str(self.article), str(self.about), str(self.price))
+        return str(self.article), str(self.about), str(self.price)
     
     def as_dict(self):
         return {
