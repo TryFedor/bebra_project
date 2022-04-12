@@ -11,14 +11,16 @@ class Good(SqlAlchemyBase):
     article = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     about = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     price = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
-
+    count = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
+    
     def __repr__(self):
-        return str(self.article), str(self.about), str(self.price)
+        return ', '.join((str(self.article), str(self.about), str(self.price)))
     
     def as_dict(self):
         return {
             'id': self.id,
             'article': self.article,
             'about': self.about,
-            'price': self.price
+            'price': self.price,
+            'count': self.count
         }

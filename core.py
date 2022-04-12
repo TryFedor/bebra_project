@@ -3,10 +3,13 @@ from flask import render_template
 from flask import request
 from data.users import User
 from data.forms import LoginForm
+from flask import session
 from flask import redirect
 from flask_login import login_user
 from flask_login import logout_user
 from data.forms import RegisterForm
+from flask import request
+from werkzeug.datastructures import CombinedMultiDict
 from data.forms import NewGoodForm
 from flask_restful import Api
 from flask_restful import Resource
@@ -15,12 +18,15 @@ from flask_login import LoginManager
 from data import db_session
 from data.goods import Good
 from werkzeug.utils import secure_filename
-import os
+import os 
 
+
+# TODO: поместить кнопки логина и регистрации справа
 
 
 app = Flask(__name__, template_folder='static/templates', static_folder='static')
 app.config['SECRET_KEY'] = 'kjnc{On3[ijnP3[oNCQ@(nC#('
+app.config['UPLOAD_FOLDER'] = 'static/img'
 api = Api(app)
 
 
@@ -82,8 +88,27 @@ def reqister():
 
 @app.route('/')
 def main_view():
-    return render_template('goods.html', title='О.Магазин!')
+    dbs = db_session.create_session()
+    goods = [good for good in dbs.query(Good).all()][:9]
+    goods = [goods[0], goods[1], goods[2]], [goods[3], goods[4], goods[5]], [goods[6], goods[7], goods[8]]
 
+    return render_template('goods.html', title='О.Магазин!', data=goods)
+
+@app.route('/add_to_cart/<int:ident>')
+def add_to_cart_view(ident):
+    if session['cart']:
+        session['cart'].append(ident)
+        session.modified = True
+    else:
+        session['cart'] = [ident]
+
+    return redirect('/')
+
+@app.route('/cart')
+def cart_view():        # TODO: Разобраться с количеством
+    dbs = db_session.create_session()
+    goods = dbs.query(Good).filter(Good.id.in_(session['cart'])).all()
+    return render_template('cart.html', cart=goods)
 
 @app.route('/goods')
 def test_view():
@@ -96,13 +121,24 @@ def test_view():
 
 @app.route('/add_goods', methods=['GET', 'POST'])
 def add_good_view():
-    form = NewGoodForm()
+    form = NewGoodForm(CombinedMultiDict((request.files, request.form)))
 
     if form.validate_on_submit():
+        dbs = db_session.create_session()
+        
+        item = Good()
+        item.article = form.article.data
+        item.about = form.about.data
+        item.count = form.count.data
+        item.price = form.price.data
+        
+        dbs.add(item)
+        dbs.commit()
+        
         f = form.image.data
-        filename = secure_filename(f.filename)
-        f.save(filename)
-        return redirect('/')
+        fn = secure_filename(form.article.data + '.jpg')
+        f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
+        return redirect('/asdsadsa')
     
     return render_template('add_good.html', form=form)
 
@@ -119,7 +155,7 @@ class GoodsResource(Resource):
 api.add_resource(GoodsResource, '/api/v2/get_goods/by_id/<int:id>') 
 
 
-db_session.global_init("db/core_db.db")
+db_session.global_init("db/ad.db")
 
 if False:
     dbs = db_session.create_session()
@@ -139,4 +175,4 @@ if False:
 
     dbs.commit()
 else:
-    app.run(debug=True)
+    app.run(debug=True, port=5000)

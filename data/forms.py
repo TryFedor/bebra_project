@@ -9,7 +9,7 @@ from wtforms import IntegerField
 from wtforms import FileField
 from wtforms.validators import DataRequired
 from flask_wtf.file import FileField, FileRequired
-
+from wtforms import FileField
 
 class LoginForm(FlaskForm):
     email = EmailField('Почта', validators=[DataRequired()])
@@ -17,6 +17,7 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Запомнить меня')
 
     submit = SubmitField('Готово')
+
 
 
 class RegisterForm(FlaskForm):
@@ -28,10 +29,10 @@ class RegisterForm(FlaskForm):
 
 
 class NewGoodForm(FlaskForm):
-    article = StringField('Article')
-    about = StringField('About')
-    price = DecimalField('Price')
-    count = IntegerField('Count')
-    image = FileField(validators=[FileRequired()])
-
+    article = StringField('article', validators=[DataRequired()])
+    about = StringField('about', validators=[DataRequired()])
+    price = DecimalField('price', validators=[DataRequired()])
+    count = IntegerField('count', validators=[DataRequired()])
+    image = FileField('image', validators=[FileRequired()])
+    
     submit = SubmitField('Submit')
