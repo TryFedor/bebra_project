@@ -22,6 +22,13 @@ import os
 
 
 # TODO: поместить кнопки логина и регистрации справа
+# TODO: На главной странице создать разделы 
+# TODO: Сделать форму для Предложений
+# TODO: Сделать кнопку случайного товара
+# TODO: Довести до ума корзину
+# TODO: Реализовать алгоритм работы промокодов
+# TODO: Оптимизировать файл requirements.txt
+# TODO: Поставить логотип
 
 
 app = Flask(__name__, template_folder='static/templates', static_folder='static')
@@ -94,21 +101,42 @@ def main_view():
 
     return render_template('goods.html', title='О.Магазин!', data=goods)
 
-@app.route('/add_to_cart/<int:ident>')
+
+@app.route('/add_to_cart/<ident>')
 def add_to_cart_view(ident):
     if session['cart']:
-        session['cart'].append(ident)
+        if session['cart'].get(ident, False):
+            session['cart'][ident] += 1
+        else:
+            session['cart'][ident] = 1
+
         session.modified = True
     else:
-        session['cart'] = [ident]
+        session['cart'] = {ident: 1}
 
     return redirect('/')
 
+
 @app.route('/cart')
-def cart_view():        # TODO: Разобраться с количеством
+def cart_view():
     dbs = db_session.create_session()
-    goods = dbs.query(Good).filter(Good.id.in_(session['cart'])).all()
+    
+    goods = list()
+    for item in session['cart']:
+        goods.append([dbs.query(Good).filter(Good.id == item).one_or_none(), session['cart'][item]])
+
     return render_template('cart.html', cart=goods)
+
+
+@app.route('/clear-cart')
+def clear_cart_veiw():
+    if session['cart']:
+        session['cart'] = dict()
+    else:
+        pass
+    
+    return redirect('/cart')
+
 
 @app.route('/goods')
 def test_view():
@@ -128,20 +156,22 @@ def add_good_view():
         
         item = Good()
         item.article = form.article.data
+        print(item.article)
         item.about = form.about.data
         item.count = form.count.data
         item.price = form.price.data
         
+        f = form.image.data
+        fn = secure_filename(f"{item.article}.jpg")
+        print(fn)
+        f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
+        
         dbs.add(item)
         dbs.commit()
-        
-        f = form.image.data
-        fn = secure_filename(form.article.data + '.jpg')
-        f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
-        return redirect('/asdsadsa')
+
+        return redirect('/')
     
     return render_template('add_good.html', form=form)
-
 
 
 class GoodsResource(Resource):
