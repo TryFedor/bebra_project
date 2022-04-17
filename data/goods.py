@@ -12,10 +12,8 @@ class Good(SqlAlchemyBase):
     about = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     price = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
     count = sqlalchemy.Column(sqlalchemy.Integer, nullable=True)
-    
-    def __repr__(self):
-        return ', '.join((str(self.article), str(self.about), str(self.price)))
-    
+    category = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+
     def as_dict(self):
         return {
             'id': self.id,

@@ -1,19 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-        <div class="container text-center">
-            {% for row in data %}
-            <div class="row text-center">
-                {% for good in row %}
-                <div class="col-sm m-5 bg-light p-5">
-                    <h3>{{ good.article }}</h3>
-                    <img src="static/img/{{ good.article }}.jpg" class="img-fluid">
-                    <p>{{ good.about }}</p>
-                    <p>{{ good.price }}₽</p>
-                    <a type="button" href="/add_to_cart/{{ good.id }}" class='btn btn-lg btn-warning'>В корзину</a>
-                </div>
-                {% endfor %}
-            </div>
-            {% endfor %}
-        </div>
+{% for row in data %}
+<div class="container text-center">
+<div class="row">
+    {% for good in row %}
+    {% if good in ['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор'] %}
+    <div class="col-sm-2 m-1"><h2>{{ good }}</h2></div>
+    {% else %}
+    {% if good != '' %}
+    <div class="col-sm-2 m-1 bg-light p-5">
+        <h2>{{ good.article }}</h2>
+        <img src="static/img/{{ good.id }}.jpg" class="img-fluid">
+        <p>{{ good.about }}</p>
+        <p>{{ good.price }} рублей</p>
+        <a onclick="fetch('/add_to_cart/{{ good.id }}', {method: 'POST'})" type="button" class="btn btn-lg btn-outline-warning align-text-bottom">В корзину</a>
+    </div>
+    {% else %}
+    <div class="col-sm-2 m-1"></div>
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+</div>
+</div>
+{% endfor %}
+
+<script>
+    function addToCart(productId) {
+        fetch('127.0.0.1/add_to_cart/productId', 
+            {method: 'POST'}
+        )
+    }
+    </script>
+
 {% endblock %}

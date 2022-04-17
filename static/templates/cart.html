@@ -2,10 +2,24 @@
 
 {% block content %}
         <div class="container text-center">
-            {% for item in cart %}
-             <p>{{ item[0] }} Кол-во: {{ item[1] }}</p>
-             <p></p>
+            {% for row in cart %}
+            <div class="row text-center">
+                {% for item in row %}
+                <div class="col-sm-3 m-5 bg-light p-5">
+                    <h3>{{ item[0].article }}</h3>
+                    <img src="static/img/{{ item[0].article }}.jpg" class="img-fluid">
+                    <p>Кол-во: {{ item[1] }}</p>
+                    <p>{{ item[0].price }}₽</p>
+                </div>
+                {% endfor %}
+            </div>
             {% endfor %}
         </div>
-        <a href="/clear-cart" class="btn btn-outline-warning">Очистить корзину</a>
+
+        <div class="container text-center">
+            <a href="/approve" class="btn btn-lg btn-success">Оформить заказ</a>
+        </div>
+        <div class="container text-center p-5">
+            <a href="/clear-cart" class="btn btn-lg btn-outline-danger">Очистить корзину</a>
+        </div>
 {% endblock %}

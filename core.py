@@ -1,7 +1,11 @@
-from flask import Flask, jsonify
+from flask import Flask
+from flask import jsonify
 from flask import render_template
 from flask import request
+from sqlalchemy import func
+from data.applications import Application
 from data.users import User
+from data.forms import ApplicationForm
 from data.forms import LoginForm
 from flask import session
 from flask import redirect
@@ -22,13 +26,11 @@ import os
 
 
 # TODO: поместить кнопки логина и регистрации справа
-# TODO: На главной странице создать разделы 
-# TODO: Сделать форму для Предложений
+# TODO: На главной странице создать разделы
 # TODO: Сделать кнопку случайного товара
 # TODO: Довести до ума корзину
 # TODO: Реализовать алгоритм работы промокодов
 # TODO: Оптимизировать файл requirements.txt
-# TODO: Поставить логотип
 
 
 app = Flask(__name__, template_folder='static/templates', static_folder='static')
@@ -96,15 +98,29 @@ def reqister():
 @app.route('/')
 def main_view():
     dbs = db_session.create_session()
-    goods = [good for good in dbs.query(Good).all()][:9]
-    goods = [goods[0], goods[1], goods[2]], [goods[3], goods[4], goods[5]], [goods[6], goods[7], goods[8]]
+    goods = dbs.query(Good).all()
+    
+    categories = [[] for _ in range(5)]
 
-    return render_template('goods.html', title='О.Магазин!', data=goods)
+    format_categories(goods, categories)
+    max_len = max(len(x) for x in categories)
+    
+    rows = [['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор']]
+
+    for i in range(max_len):
+        item1 = categories[0][i] if len(categories[0]) > i else ''
+        item2 = categories[1][i] if len(categories[1]) > i else ''
+        item3 = categories[2][i] if len(categories[2]) > i else ''
+        item4 = categories[3][i] if len(categories[3]) > i else ''
+        item5 = categories[4][i] if len(categories[4]) > i else ''
+        rows.append([item1, item2, item3, item4, item5])
+
+    return render_template('goods.html', title='О.Магазин!', data=rows, max_item_count=range(max_len))
 
 
-@app.route('/add_to_cart/<ident>')
+@app.route('/add_to_cart/<ident>', methods=['POST'])
 def add_to_cart_view(ident):
-    if session['cart']:
+    if session.get('cart', False):
         if session['cart'].get(ident, False):
             session['cart'][ident] += 1
         else:
@@ -122,8 +138,12 @@ def cart_view():
     dbs = db_session.create_session()
     
     goods = list()
+    if not session.get('cart', False):
+        session['cart'] = dict()
     for item in session['cart']:
-        goods.append([dbs.query(Good).filter(Good.id == item).one_or_none(), session['cart'][item]])
+        goods.append([dbs.query(Good).filter(Good.id == item).one_or_none(),  session['cart'][item]])
+
+    goods = [goods[i:i + 3] for i in range(0, len(goods), 3)]
 
     return render_template('cart.html', cart=goods)
 
@@ -148,6 +168,7 @@ def test_view():
 
 
 @app.route('/add_goods', methods=['GET', 'POST'])
+@login_required
 def add_good_view():
     form = NewGoodForm(CombinedMultiDict((request.files, request.form)))
 
@@ -160,18 +181,58 @@ def add_good_view():
         item.about = form.about.data
         item.count = form.count.data
         item.price = form.price.data
-        
-        f = form.image.data
-        fn = secure_filename(f"{item.article}.jpg")
-        print(fn)
-        f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
-        
+        item.category = form.category.data
+                
         dbs.add(item)
         dbs.commit()
+
+        new_item = dbs.query(Good).filter(Good.article == item.article).one()
+
+        f = form.image.data
+        fn = secure_filename(f"{new_item.id}.jpg")
+        f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
+
 
         return redirect('/')
     
     return render_template('add_good.html', form=form)
+
+
+@app.route('/application', methods=['POST', 'GET'])
+def application_view():
+    form = ApplicationForm()
+
+    if form.validate_on_submit():
+        name = form.name.data
+        email = form.email.data
+        message = form.message.data
+
+        application = Application()
+        application.name = name
+        application.email = email
+        application.message = message
+
+        dbs = db_session.create_session()
+        dbs.add(application)
+        dbs.commit()
+
+        return redirect('/')
+
+    return render_template('applications.html', form=form)
+
+
+def format_categories(goods, categories):
+    for good in goods:
+        if good.category == 'Метёлки':
+            categories[0].append(good)
+        elif good.category == 'Бебрики':
+            categories[1].append(good)
+        elif good.category == 'Пылесосы':
+            categories[2].append(good)
+        elif good.category == 'Учебники английского':
+            categories[3].append(good)
+        else:
+            categories[4].append(good)
 
 
 class GoodsResource(Resource):
@@ -187,22 +248,126 @@ api.add_resource(GoodsResource, '/api/v2/get_goods/by_id/<int:id>')
 
 db_session.global_init("db/ad.db")
 
+
 if False:
     dbs = db_session.create_session()
+
     good1 = Good()
     good1.article = 'Метла'
     good1.about = 'Хуже чем пылесос'
     good1.price = 49.00
-
-    dbs.add(good1)
+    good1.count = 50
+    good1.category = 'Метёлки'
 
     good2 = Good()
     good2.article = 'Швабра'
     good2.about = 'Не является пылесосом'
     good2.price = 500.00
+    good2.count = 50
+    good2.category = 'Метёлки'
 
+    dbs.add(good1)
+    dbs.add(good2)
+
+    good1 = Good()
+    good1.article = 'Пылесос Miele'
+    good1.about = 'Отлично подойдёт для дачи или загородного дома, прекрасно чистит пол (наверное)'
+    good1.price = 4000.00
+    good1.count = 50
+    good1.category = 'Пылесосы'
+
+    good2 = Good()
+    good2.article = 'Промышленный пылесос Mekqodnwn x5 super ultra'
+    good2.about = 'Нечего говорить, лучше сразу покупать'
+    good2.price = 17990.00
+    good2.count = 50
+    good2.category = 'Пылесосы'
+
+    dbs.add(good1)
+    dbs.add(good2)
+
+    good1 = Good()
+    good1.article = 'Правдивый пылесос Никитос'
+    good1.about = 'Скажет вам правду в любой момент.  *Иногда не хочет пылесосить'
+    good1.price = 100.00
+    good1.count = 50
+    good1.category = 'Пылесосы'
+
+    good2 = Good()
+    good2.article = 'Робот-пылесос Xiaomi mega ultra'
+    good2.about = 'Пылесосит даже то, что не надо. Супер вещь'
+    good2.price = 19990.00
+    good2.count = 50
+    good2.category = 'Пылесосы'
+
+    dbs.add(good1)
+    dbs.add(good2)
+
+    good1 = Good()
+    good1.article = 'Робот-пылесос Samsung amK'
+    good1.about = 'Идеально подходит для сильных загрязнений, может катать котов'
+    good1.price = 7800.00
+    good1.count = 50
+    good1.category = 'Пылесосы'
+
+    good2 = Good()
+    good2.article = 'Водонапорная станция города Бебра'
+    good2.about = 'Хотите наполнить ванну за 0,7 секунд? Долго моете полы? Хотите наполнить 27 чайников за считанные секунды? Водонапорная башня вам очень поможет.'
+    good2.price = 27000000.00
+    good2.count = 50
+    good2.category = 'Бебрики'
+
+    dbs.add(good1)
+    dbs.add(good2)
+
+    good1 = Good()
+    good1.article = 'Герб города Бебра'
+    good1.about = 'Всегда мечтали официально владеть гербом самого лучшего города мира? Мы нашли решение'
+    good1.price = 300.00
+    good1.count = 50
+    good1.category = 'Бебрики'
+
+    good2 = Good()
+    good2.article = 'Краткая характеристика Бебры'
+    good2.about = '270 страниц с кратким описанием'
+    good2.price = 56000.00
+    good2.count = 50
+    good2.category = 'Бебрики'
+
+    dbs.add(good1)
+    dbs.add(good2)
+
+    dbs.commit()
+
+    good1 = Good()
+    good1.article = 'Самоучитель английского языка'
+    good1.about = ''
+    good1.price = 300.00
+    good1.count = 50
+    good1.category = 'Учебники английского'
+
+    good2 = Good()
+    good2.article = 'Учебник английского 9 класс, Афанасьева, Михеева.jpg'
+    good2.about = ''
+    good2.price = 400.00
+    good2.count = 50
+    good2.category = 'Учебники английского'
+
+    dbs.add(good1)
+    dbs.add(good2)
+
+    good2 = Good()
+    good2.article = 'Учебник Spotlight 9 класс.  Students Book.jpg'
+    good2.about = ''
+    good2.price = 450.00
+    good2.count = 50
+    good2.category = 'Учебники английского'
+
+    dbs.add(good1)
     dbs.add(good2)
 
     dbs.commit()
 else:
-    app.run(debug=True, port=5000)
+    #if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)

@@ -7,9 +7,11 @@ from wtforms import StringField
 from wtforms import DecimalField
 from wtforms import IntegerField
 from wtforms import FileField
+from wtforms import TextAreaField
 from wtforms.validators import DataRequired
 from flask_wtf.file import FileField, FileRequired
 from wtforms import FileField
+
 
 class LoginForm(FlaskForm):
     email = EmailField('Почта', validators=[DataRequired()])
@@ -29,10 +31,19 @@ class RegisterForm(FlaskForm):
 
 
 class NewGoodForm(FlaskForm):
-    article = StringField('article', validators=[DataRequired()])
-    about = StringField('about', validators=[DataRequired()])
-    price = DecimalField('price', validators=[DataRequired()])
-    count = IntegerField('count', validators=[DataRequired()])
-    image = FileField('image', validators=[FileRequired()])
+    article = StringField('Название', validators=[DataRequired()])
+    about = StringField('Описание', validators=[DataRequired()])
+    price = DecimalField('Цена', validators=[DataRequired()])
+    count = IntegerField('Количество', validators=[DataRequired()])
+    category = StringField('Категория', validators=[DataRequired()])
+    image = FileField('Картинка', validators=[FileRequired()])
     
     submit = SubmitField('Submit')
+
+
+class ApplicationForm(FlaskForm):
+    name = StringField('Имя')
+    email = EmailField('Email')
+    message = TextAreaField('Текст предложения')
+
+    submit = SubmitField('Отправить')
