@@ -7,7 +7,7 @@
                 {% for item in row %}
                 <div class="col-sm-3 m-5 bg-light p-5">
                     <h3>{{ item[0].article }}</h3>
-                    <img src="static/img/{{ item[0].article }}.jpg" class="img-fluid">
+                    <img src="static/img/{{ item[0].id }}.jpg" class="img-fluid">
                     <p>Кол-во: {{ item[1] }}</p>
                     <p>{{ item[0].price }}₽</p>
                 </div>
@@ -15,9 +15,13 @@
             </div>
             {% endfor %}
         </div>
+        
+        <div class="container text-center">
+            <h3>Итог: {{ total }}₽</h3>
+        </div>
 
         <div class="container text-center">
-            <a href="/approve" class="btn btn-lg btn-success">Оформить заказ</a>
+            <a href="/" onclick="alert('Успешная покупка!')"class="btn btn-lg btn-success">Оформить заказ</a>
         </div>
         <div class="container text-center p-5">
             <a href="/clear-cart" class="btn btn-lg btn-outline-danger">Очистить корзину</a>

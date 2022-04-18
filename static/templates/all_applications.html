@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container">
+        {% for app in applications %}
+            <div class="col-3 bg-secondary p-5 m-5">
+                <h2>{{ app.name }}</h2>
+                <p>{{ app.email }}</p>
+                <p>{{ app.message }}</p>
+            </div>
+        {% endfor %}    
+    </div>
+{% endblock %}

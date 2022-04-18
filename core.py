@@ -1,47 +1,44 @@
-from flask import Flask
-from flask import jsonify
+from flask import Flask, jsonify
 from flask import render_template
 from flask import request
-from sqlalchemy import func
+from data.resourses import ApplicationResource
+from data.resourses import GoodByCategory
+from data.resourses import GoodsResource
+from data.resourses import UserResource
 from data.applications import Application
 from data.users import User
 from data.forms import ApplicationForm
 from data.forms import LoginForm
+from random import sample
 from flask import session
 from flask import redirect
+from flask_login import current_user 
 from flask_login import login_user
 from flask_login import logout_user
 from data.forms import RegisterForm
-from flask import request
 from werkzeug.datastructures import CombinedMultiDict
 from data.forms import NewGoodForm
 from flask_restful import Api
-from flask_restful import Resource
 from flask_login import login_required
 from flask_login import LoginManager
+from werkzeug.exceptions import Unauthorized
+from werkzeug.exceptions import InternalServerError
 from data import db_session
 from data.goods import Good
 from werkzeug.utils import secure_filename
-import os 
+import os
 
-
-# TODO: поместить кнопки логина и регистрации справа
-# TODO: На главной странице создать разделы
-# TODO: Сделать кнопку случайного товара
-# TODO: Довести до ума корзину
-# TODO: Реализовать алгоритм работы промокодов
-# TODO: Оптимизировать файл requirements.txt
+from utils import load_settings 
 
 
 app = Flask(__name__, template_folder='static/templates', static_folder='static')
-app.config['SECRET_KEY'] = 'kjnc{On3[ijnP3[oNCQ@(nC#('
-app.config['UPLOAD_FOLDER'] = 'static/img'
+settings = load_settings()
+app.config['SECRET_KEY'] = settings['secret_key']
+app.config['UPLOAD_FOLDER'] = settings['upload_directory']
 api = Api(app)
-
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -87,6 +84,7 @@ def reqister():
         user = User(
             email=form.email.data,
         )
+        user.permission_level = 1
         user.set_password(form.password.data)
         db_sess.add(user)
         db_sess.commit()
@@ -100,22 +98,21 @@ def main_view():
     dbs = db_session.create_session()
     goods = dbs.query(Good).all()
     
-    categories = [[] for _ in range(5)]
+    goods = sample(goods, 10)
 
-    format_categories(goods, categories)
-    max_len = max(len(x) for x in categories)
+    categories = ['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор']
     
-    rows = [['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор']]
+    return render_template('goods.html', title='БебраМаркет', data=goods, categories=categories)
 
-    for i in range(max_len):
-        item1 = categories[0][i] if len(categories[0]) > i else ''
-        item2 = categories[1][i] if len(categories[1]) > i else ''
-        item3 = categories[2][i] if len(categories[2]) > i else ''
-        item4 = categories[3][i] if len(categories[3]) > i else ''
-        item5 = categories[4][i] if len(categories[4]) > i else ''
-        rows.append([item1, item2, item3, item4, item5])
 
-    return render_template('goods.html', title='О.Магазин!', data=rows, max_item_count=range(max_len))
+@app.route('/<category>')
+def category_view(category):
+    dbs = db_session.create_session()
+    goods = dbs.query(Good).filter(Good.category == category).all()
+
+    categories = ['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор']
+    
+    return render_template('goods.html', title='О.Магазин!', data=goods, categories=categories)
 
 
 @app.route('/add_to_cart/<ident>', methods=['POST'])
@@ -133,19 +130,24 @@ def add_to_cart_view(ident):
     return redirect('/')
 
 
-@app.route('/cart')
+@app.route('/cart', methods=['POST', 'GET'])
 def cart_view():
+    if request.method == 'POST':
+        return redirect('/')
+
     dbs = db_session.create_session()
     
     goods = list()
     if not session.get('cart', False):
         session['cart'] = dict()
+
     for item in session['cart']:
         goods.append([dbs.query(Good).filter(Good.id == item).one_or_none(),  session['cart'][item]])
+    
+    total = sum([good[0].price * good[1] for good in goods])
 
     goods = [goods[i:i + 3] for i in range(0, len(goods), 3)]
-
-    return render_template('cart.html', cart=goods)
+    return render_template('cart.html', cart=goods, total=total)
 
 
 @app.route('/clear-cart')
@@ -158,18 +160,12 @@ def clear_cart_veiw():
     return redirect('/cart')
 
 
-@app.route('/goods')
-def test_view():
-    dbs = db_session.create_session()
-    goods = [good.__repr__() for good in dbs.query(Good).all()]
-    goods = [', '.join(good) for good in goods]
-
-    return '<br>'.join(goods)
-
-
 @app.route('/add_goods', methods=['GET', 'POST'])
 @login_required
 def add_good_view():
+    if current_user.permission_level != 9:
+        return render_template('404.html')
+
     form = NewGoodForm(CombinedMultiDict((request.files, request.form)))
 
     if form.validate_on_submit():
@@ -177,7 +173,6 @@ def add_good_view():
         
         item = Good()
         item.article = form.article.data
-        print(item.article)
         item.about = form.about.data
         item.count = form.count.data
         item.price = form.price.data
@@ -186,19 +181,40 @@ def add_good_view():
         dbs.add(item)
         dbs.commit()
 
-        new_item = dbs.query(Good).filter(Good.article == item.article).one()
+        new_item = dbs.query(Good).filter(Good.article == item.article).one_or_none()
 
-        f = form.image.data
-        fn = secure_filename(f"{new_item.id}.jpg")
-        f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
+        if new_item is None:
+            print('Critical error: cannot save new article')
+            return redirect('/error/404')
 
-
+        try:
+            f = form.image.data
+            fn = secure_filename(f"{new_item.id}.jpg")
+            f.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
+        except OSError:
+            print('Не удалось сохранить картинку при создании товара.')
+            return redirect('/cannot_save_image/creation')
+            
         return redirect('/')
     
     return render_template('add_good.html', form=form)
 
 
+@app.route('/all_applications')
+@login_required
+def all_applications_view():
+    if current_user.permission_level != 9:
+        return redirect('/')
+
+    dbs = db_session.create_session()
+    
+    applications = dbs.query(Application).all()
+
+    return render_template('all_applications.html', applications=applications)
+
+
 @app.route('/application', methods=['POST', 'GET'])
+@login_required
 def application_view():
     form = ApplicationForm()
 
@@ -221,153 +237,34 @@ def application_view():
     return render_template('applications.html', form=form)
 
 
-def format_categories(goods, categories):
-    for good in goods:
-        if good.category == 'Метёлки':
-            categories[0].append(good)
-        elif good.category == 'Бебрики':
-            categories[1].append(good)
-        elif good.category == 'Пылесосы':
-            categories[2].append(good)
-        elif good.category == 'Учебники английского':
-            categories[3].append(good)
-        else:
-            categories[4].append(good)
+@app.errorhandler(404)
+def error404_handler(error):
+    return render_template('404.html')
 
 
-class GoodsResource(Resource):
-    def get(self, id): 
-        dbs = db_session.create_session()
-        good = dbs.query(Good).get(id)
+@app.errorhandler(Unauthorized)
+def error401_handler(error):
+    print(f"""\n!!! Попытка получения несанкционированного доступа !!!
+                IP Адрес: {request.remote_addr}
+                Schema: {request.scheme}
+           """)
 
-        return jsonify({'success': good.as_dict()})
+    return render_template('404.html')
 
 
-api.add_resource(GoodsResource, '/api/v2/get_goods/by_id/<int:id>') 
+@app.errorhandler(InternalServerError)
+def internal_error_handler(error):
+    print('Внимание !!! Внутренняя ошибка сервера !!!')
+    print(f'Сообщение получено от {request.scheme}')
 
+    return render_template('404.html')
+
+
+api.add_resource(GoodsResource, '/api/v2/get/goods/by_id/<int:id>')
+api.add_resource(GoodByCategory, '/api/v2/get/goods/by_category/<category>')
+api.add_resource(ApplicationResource, '/api/v2/get/application/by_id/<int:id>') 
+api.add_resource(UserResource, '/api/v2/get/user/<criterion>')
 
 db_session.global_init("db/ad.db")
 
-
-if False:
-    dbs = db_session.create_session()
-
-    good1 = Good()
-    good1.article = 'Метла'
-    good1.about = 'Хуже чем пылесос'
-    good1.price = 49.00
-    good1.count = 50
-    good1.category = 'Метёлки'
-
-    good2 = Good()
-    good2.article = 'Швабра'
-    good2.about = 'Не является пылесосом'
-    good2.price = 500.00
-    good2.count = 50
-    good2.category = 'Метёлки'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    good1 = Good()
-    good1.article = 'Пылесос Miele'
-    good1.about = 'Отлично подойдёт для дачи или загородного дома, прекрасно чистит пол (наверное)'
-    good1.price = 4000.00
-    good1.count = 50
-    good1.category = 'Пылесосы'
-
-    good2 = Good()
-    good2.article = 'Промышленный пылесос Mekqodnwn x5 super ultra'
-    good2.about = 'Нечего говорить, лучше сразу покупать'
-    good2.price = 17990.00
-    good2.count = 50
-    good2.category = 'Пылесосы'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    good1 = Good()
-    good1.article = 'Правдивый пылесос Никитос'
-    good1.about = 'Скажет вам правду в любой момент.  *Иногда не хочет пылесосить'
-    good1.price = 100.00
-    good1.count = 50
-    good1.category = 'Пылесосы'
-
-    good2 = Good()
-    good2.article = 'Робот-пылесос Xiaomi mega ultra'
-    good2.about = 'Пылесосит даже то, что не надо. Супер вещь'
-    good2.price = 19990.00
-    good2.count = 50
-    good2.category = 'Пылесосы'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    good1 = Good()
-    good1.article = 'Робот-пылесос Samsung amK'
-    good1.about = 'Идеально подходит для сильных загрязнений, может катать котов'
-    good1.price = 7800.00
-    good1.count = 50
-    good1.category = 'Пылесосы'
-
-    good2 = Good()
-    good2.article = 'Водонапорная станция города Бебра'
-    good2.about = 'Хотите наполнить ванну за 0,7 секунд? Долго моете полы? Хотите наполнить 27 чайников за считанные секунды? Водонапорная башня вам очень поможет.'
-    good2.price = 27000000.00
-    good2.count = 50
-    good2.category = 'Бебрики'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    good1 = Good()
-    good1.article = 'Герб города Бебра'
-    good1.about = 'Всегда мечтали официально владеть гербом самого лучшего города мира? Мы нашли решение'
-    good1.price = 300.00
-    good1.count = 50
-    good1.category = 'Бебрики'
-
-    good2 = Good()
-    good2.article = 'Краткая характеристика Бебры'
-    good2.about = '270 страниц с кратким описанием'
-    good2.price = 56000.00
-    good2.count = 50
-    good2.category = 'Бебрики'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    dbs.commit()
-
-    good1 = Good()
-    good1.article = 'Самоучитель английского языка'
-    good1.about = ''
-    good1.price = 300.00
-    good1.count = 50
-    good1.category = 'Учебники английского'
-
-    good2 = Good()
-    good2.article = 'Учебник английского 9 класс, Афанасьева, Михеева.jpg'
-    good2.about = ''
-    good2.price = 400.00
-    good2.count = 50
-    good2.category = 'Учебники английского'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    good2 = Good()
-    good2.article = 'Учебник Spotlight 9 класс.  Students Book.jpg'
-    good2.about = ''
-    good2.price = 450.00
-    good2.count = 50
-    good2.category = 'Учебники английского'
-
-    dbs.add(good1)
-    dbs.add(good2)
-
-    dbs.commit()
-else:
-    #if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+app.run(port=settings['port'], debug=settings['debug'])

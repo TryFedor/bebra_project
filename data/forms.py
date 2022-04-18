@@ -23,11 +23,11 @@ class LoginForm(FlaskForm):
 
 
 class RegisterForm(FlaskForm):
-    email = EmailField('Login', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    password_again = PasswordField('Repeat password', validators=[DataRequired()])
+    email = EmailField('Почта/логин', validators=[DataRequired()])
+    password = PasswordField('Пароль', validators=[DataRequired()])
+    password_again = PasswordField('Повторите пароль', validators=[DataRequired()])
 
-    submit = SubmitField('Готово')
+    submit = SubmitField('За покупками!')
 
 
 class NewGoodForm(FlaskForm):
@@ -38,7 +38,7 @@ class NewGoodForm(FlaskForm):
     category = StringField('Категория', validators=[DataRequired()])
     image = FileField('Картинка', validators=[FileRequired()])
     
-    submit = SubmitField('Submit')
+    submit = SubmitField('Добавить')
 
 
 class ApplicationForm(FlaskForm):

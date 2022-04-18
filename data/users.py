@@ -14,6 +14,7 @@ class User(SqlAlchemyBase, UserMixin):
                               index=True, unique=True, nullable=True)
 
     hashed_password = sqlalchemy.Column(sqlalchemy.String)
+    permission_level = sqlalchemy.Column(sqlalchemy.Integer)
                                     
     def __repr__(self):
         return f'Пользователь "{self.name}", почта -- {self.email}'
