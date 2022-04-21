@@ -18,16 +18,15 @@ class LoginForm(FlaskForm):
     password = PasswordField('Пароль', validators=[DataRequired()])
     remember_me = BooleanField('Запомнить меня')
 
-    submit = SubmitField('Готово')
-
+    submit = SubmitField('За покупками!')
 
 
 class RegisterForm(FlaskForm):
-    email = EmailField('Почта/логин', validators=[DataRequired()])
+    email = EmailField('Почта', validators=[DataRequired()])
     password = PasswordField('Пароль', validators=[DataRequired()])
     password_again = PasswordField('Повторите пароль', validators=[DataRequired()])
 
-    submit = SubmitField('За покупками!')
+    submit = SubmitField('Завершить регистрацию')
 
 
 class NewGoodForm(FlaskForm):
@@ -37,13 +36,13 @@ class NewGoodForm(FlaskForm):
     count = IntegerField('Количество', validators=[DataRequired()])
     category = StringField('Категория', validators=[DataRequired()])
     image = FileField('Картинка', validators=[FileRequired()])
-    
-    submit = SubmitField('Добавить')
+
+    submit = SubmitField('Опубликовать')
 
 
 class ApplicationForm(FlaskForm):
     name = StringField('Имя')
     email = EmailField('Email')
-    message = TextAreaField('Текст предложения')
+    message = TextAreaField('Текст предложения/жалобы')
 
-    submit = SubmitField('Отправить')
+    submit = SubmitField('Отправить предложение')

@@ -12,7 +12,7 @@ from data.forms import LoginForm
 from random import sample
 from flask import session
 from flask import redirect
-from flask_login import current_user 
+from flask_login import current_user
 from flask_login import login_user
 from flask_login import logout_user
 from data.forms import RegisterForm
@@ -27,18 +27,18 @@ from data import db_session
 from data.goods import Good
 from werkzeug.utils import secure_filename
 import os
-
-from utils import load_settings 
-
+from utils import load_settings
 
 app = Flask(__name__, template_folder='static/templates', static_folder='static')
 settings = load_settings()
 app.config['SECRET_KEY'] = settings['secret_key']
 app.config['UPLOAD_FOLDER'] = settings['upload_directory']
+count = 1
 api = Api(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -95,14 +95,22 @@ def reqister():
 
 @app.route('/')
 def main_view():
+    if session.get('count', False):
+        if session['count'] >= 5:
+            return redirect('/easter/egg')
+        else:
+            session['count'] += 1
+    else:
+        session['count'] = 1
+
     dbs = db_session.create_session()
     goods = dbs.query(Good).all()
-    
+
     goods = sample(goods, 10)
 
-    categories = ['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор']
-    
-    return render_template('goods.html', title='БебраМаркет', data=goods, categories=categories)
+    categories = ['Метёлки', 'Телефоны', 'Пылесосы', 'Учебники английского', 'Прочий мусор']
+
+    return render_template('goods.html', title='Маркет!', data=goods, categories=categories)
 
 
 @app.route('/<category>')
@@ -110,9 +118,16 @@ def category_view(category):
     dbs = db_session.create_session()
     goods = dbs.query(Good).filter(Good.category == category).all()
 
-    categories = ['Метёлки', 'Бебрики', 'Пылесосы', 'Учебники английского', 'Прочий мусор']
-    
-    return render_template('goods.html', title='О.Магазин!', data=goods, categories=categories)
+    categories = ['Метёлки', 'Телефоны', 'Пылесосы', 'Учебники английского', 'Прочий мусор']
+
+    return render_template('goods.html', title='Маркет!', data=goods, categories=categories)
+
+
+@app.route('/easter/egg')
+def egg_view():
+    session['count'] = 1
+
+    return render_template('easter.html')
 
 
 @app.route('/add_to_cart/<ident>', methods=['POST'])
@@ -136,14 +151,14 @@ def cart_view():
         return redirect('/')
 
     dbs = db_session.create_session()
-    
+
     goods = list()
     if not session.get('cart', False):
         session['cart'] = dict()
 
     for item in session['cart']:
-        goods.append([dbs.query(Good).filter(Good.id == item).one_or_none(),  session['cart'][item]])
-    
+        goods.append([dbs.query(Good).filter(Good.id == item).one_or_none(), session['cart'][item]])
+
     total = sum([good[0].price * good[1] for good in goods])
 
     goods = [goods[i:i + 3] for i in range(0, len(goods), 3)]
@@ -156,7 +171,7 @@ def clear_cart_veiw():
         session['cart'] = dict()
     else:
         pass
-    
+
     return redirect('/cart')
 
 
@@ -170,14 +185,14 @@ def add_good_view():
 
     if form.validate_on_submit():
         dbs = db_session.create_session()
-        
+
         item = Good()
         item.article = form.article.data
         item.about = form.about.data
         item.count = form.count.data
         item.price = form.price.data
         item.category = form.category.data
-                
+
         dbs.add(item)
         dbs.commit()
 
@@ -194,9 +209,9 @@ def add_good_view():
         except OSError:
             print('Не удалось сохранить картинку при создании товара.')
             return redirect('/cannot_save_image/creation')
-            
+
         return redirect('/')
-    
+
     return render_template('add_good.html', form=form)
 
 
@@ -207,7 +222,7 @@ def all_applications_view():
         return redirect('/')
 
     dbs = db_session.create_session()
-    
+
     applications = dbs.query(Application).all()
 
     return render_template('all_applications.html', applications=applications)
@@ -262,7 +277,7 @@ def internal_error_handler(error):
 
 api.add_resource(GoodsResource, '/api/v2/get/goods/by_id/<int:id>')
 api.add_resource(GoodByCategory, '/api/v2/get/goods/by_category/<category>')
-api.add_resource(ApplicationResource, '/api/v2/get/application/by_id/<int:id>') 
+api.add_resource(ApplicationResource, '/api/v2/get/application/by_id/<int:id>')
 api.add_resource(UserResource, '/api/v2/get/user/<criterion>')
 
 db_session.global_init("db/ad.db")

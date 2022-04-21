@@ -18,7 +18,7 @@
             <img src="static/img/{{ good.id }}.jpg" class="img-fluid">
             <p>{{ good.about }}</p>
             <p>{{ good.price }} рублей</p>
-            <a onclick="fetch('/add_to_cart/{{ good.id }}', {method: 'POST'})" type="button" class="btn btn-lg btn-outline-warning align-text-bottom">В корзину</a>
+            <a onclick="fetch('/add_to_cart/{{ good.id }}', {method: 'POST'});alert('Товар добавлен к корзину!')" type="button" class="btn btn-lg btn-outline-warning align-text-bottom">В корзину</a>
         </div>
         {% endfor %}
     </div>
@@ -30,6 +30,6 @@
             {method: 'POST'}
         )
     }
-    </script>
+</script>
 
 {% endblock %}

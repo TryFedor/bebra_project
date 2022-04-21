@@ -1,5 +1,5 @@
 {
-    "port": 5000,
+    "port": 5050,
     "secret_key": "super-secret-lyceum-key",
     "upload_directory": "static/img",
     "debug": false
